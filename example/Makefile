@@ -12,9 +12,9 @@ dirs:
 clean:
 	rm -rf $(O)/*
 
-test: read_line
-	$(CC) $(CFLAGS) main.c $(O)/read_line.o -o $(O)/test
+test: deadline
+	$(CC) $(CFLAGS) main.c $(O)/deadline.o -o $(O)/test
 
-read_line:
-	$(CC) $(CFLAGS) -c ./../read_line.c \
-	-o $(O)/read_line.o
+deadline:
+	$(CC) $(CFLAGS) -c ./../deadline.c \
+	-o $(O)/deadline.o

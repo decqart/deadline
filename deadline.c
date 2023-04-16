@@ -95,7 +95,7 @@ static void sig_handler(int sig)
 
 static struct termios old_set;
 
-static void init_read_line(void)
+static void init_readline(void)
 {
     static bool inited = false;
     if (!inited)
@@ -115,20 +115,21 @@ static void init_read_line(void)
     }
 }
 
-void exit_read_line(void)
+void exit_readline(void)
 {
     tcsetattr(STDIN_FILENO, TCSANOW, &old_set);
 }
 
-char *read_line(void)
+char *readline(char *prompt)
 {
+    fputs(prompt, stdout);
     char *buffer = malloc(256);
     if (buffer == NULL) return NULL;
     size_t size = 256;
     size_t pos = 0;
     size_t diff = 0;
 
-    init_read_line();
+    init_readline();
 
     save_cursor_state();
     get_cursor_pos(&curs_x, &curs_y);
