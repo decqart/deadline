@@ -82,6 +82,20 @@ static inline void re_pos_cursor(size_t line_size)
         move_right();
 }
 
+#define IS_TRAILING_BYTE(b) ((b & 0xc0) == 0x80)
+
+static inline size_t utf8len(const char *str)
+{
+    size_t len = 0;
+    while (*str)
+    {
+        if (!IS_TRAILING_BYTE(*str))
+            len++;
+        str++;
+    }
+    return len;
+}
+
 static bool skip = false;
 static bool re_render = false;
 
@@ -147,7 +161,7 @@ char *readline(char *prompt)
         else if (re_render)
         {
             re_render = false;
-            re_pos_cursor(strlen(buffer));
+            re_pos_cursor(utf8len(buffer));
             goto render_text;
         }
 
@@ -156,9 +170,17 @@ char *readline(char *prompt)
             if (!(pos-diff)) continue;
 
             move_left();
-            --pos;
-            for (size_t i = pos-diff; i < pos; ++i)
-                buffer[i] = buffer[i+1];
+
+            size_t rm_amount = 1;
+            while (IS_TRAILING_BYTE(buffer[pos-diff-rm_amount]))
+                rm_amount++;
+
+            for (int i = 0; i < rm_amount; ++i)
+            {
+                pos--;
+                for (size_t i = pos-diff; i < pos; ++i)
+                    buffer[i] = buffer[i+1];
+            }
             goto render_text;
         }
         else if (ch == '\033')
@@ -168,18 +190,23 @@ char *readline(char *prompt)
             if (esc[1] == 'C' && (pos-diff) < pos)
             {
                 diff--;
+                while (buffer[pos-diff] && IS_TRAILING_BYTE(buffer[pos-diff]))
+                    diff--;
                 move_right();
             }
             else if (esc[1] == 'D' && (pos-diff) != 0)
             {
                 diff++;
+                while (IS_TRAILING_BYTE(buffer[pos-diff]))
+                    diff++;
                 move_left();
             }
             move_to(curs_x, curs_y);
             continue;
         }
 
-        move_right(); //for added characters
+        if (!IS_TRAILING_BYTE(ch))
+            move_right(); //for added characters
 
         if (ch == '\n') break;
 
@@ -190,7 +217,7 @@ char *readline(char *prompt)
         if (pos == size)
         {
             size <<= 1;
-            buffer = realloc(buffer, size*sizeof(char));
+            buffer = realloc(buffer, size);
             if (buffer == NULL) return NULL;
         }
     render_text:
