@@ -107,6 +107,7 @@ static void sig_handler(int sig)
         re_render = true;
 }
 
+static struct termios new_set;
 static struct termios old_set;
 
 static void init_readline(void)
@@ -120,18 +121,13 @@ static void init_readline(void)
         sigaction(SIGINT, &sigact, NULL);
         sigaction(SIGWINCH, &sigact, NULL);
 
-        struct termios new_set;
         tcgetattr(STDIN_FILENO, &old_set);
         new_set = old_set;
         new_set.c_lflag &= (~ICANON & ~ECHO);
-        tcsetattr(STDIN_FILENO, TCSADRAIN, &new_set);
         inited = true;
     }
-}
 
-void exit_readline(void)
-{
-    tcsetattr(STDIN_FILENO, TCSANOW, &old_set);
+    tcsetattr(STDIN_FILENO, TCSADRAIN, &new_set);
 }
 
 char *readline(char *prompt)
@@ -232,5 +228,6 @@ char *readline(char *prompt)
     putchar('\n');
     skip = false;
 
+    tcsetattr(STDIN_FILENO, TCSANOW, &old_set);
     return buffer;
 }

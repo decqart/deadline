@@ -15,6 +15,6 @@ int main(void)
 
         free(buffer);
     }
-    exit_readline();
+
     return 0;
 }
