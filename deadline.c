@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2023, Baran Avci
+ *
+ * Under the MIT License
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -110,7 +116,7 @@ static void sig_handler(int sig)
 static struct termios new_set;
 static struct termios old_set;
 
-static void init_readline(void)
+static void init_deadline(void)
 {
     static bool inited = false;
     if (!inited)
@@ -139,7 +145,7 @@ char *readline(char *prompt)
     size_t pos = 0;
     size_t diff = 0;
 
-    init_readline();
+    init_deadline();
 
     save_cursor_state();
     get_cursor_pos(&curs_x, &curs_y);

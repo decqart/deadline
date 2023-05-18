@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2023, Baran Avci
+ *
+ * Under the MIT License
+ */
+
 #ifndef DEADLINE_H
 #define DEADLINE_H
 
