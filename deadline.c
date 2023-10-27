@@ -29,6 +29,7 @@ static void get_cursor_pos(int *x, int *y)
     int ch = 0;
     for (int i = 0; i < 15 && ch != 'R'; ++i)
     {
+        //TODO: replace with a std libc function
         read(STDIN_FILENO, &ch, 1);
         buf[i] = ch;
     }
@@ -136,7 +137,7 @@ static void init_deadline(void)
     tcsetattr(STDIN_FILENO, TCSADRAIN, &new_set);
 }
 
-char *readline(char *prompt)
+char *readline(const char *prompt)
 {
     fputs(prompt, stdout);
     char *buffer = malloc(256);
