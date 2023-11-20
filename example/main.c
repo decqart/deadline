@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
@@ -9,6 +10,7 @@ int main(void)
     while (!quit)
     {
         char *buffer = readline(">> ");
+        printf("%s\n", buffer);
 
         if (!strcmp(buffer, "exit"))
             quit = true;

@@ -19,13 +19,26 @@
 #define clear_cursor_down() fputs("\033[J", stdout)
 #define save_cursor_state() fputs("\0337", stdout)
 #define restore_cursor_state() fputs("\0338", stdout)
-#define move_to(x, y) printf("\033[%d;%dH", y, x)
+#define move_cursor_to(x, y) printf("\033[%d;%dH", y, x)
+
+#define IS_TRAILING_BYTE(b) ((b & 0xc0) == 0x80)
+
+static struct {
+    int width;
+    int height;
+} terminal;
+
+static struct {
+    int x;
+    int y;
+} cursor;
 
 static void get_cursor_pos(int *x, int *y)
 {
     char buf[16] = {0};
     fputs("\033[6n", stdout);
     fflush(stdout);
+
     int ch = 0;
     for (int i = 0; i < 15 && ch != 'R'; ++i)
     {
@@ -37,59 +50,56 @@ static void get_cursor_pos(int *x, int *y)
     *x = atoi(&buf[strcspn(buf, ";")+1]);
 }
 
-static void get_term_size(int *x, int *y)
+static void get_term_size(void)
 {
     struct winsize ws;
     ioctl(STDIN_FILENO, TIOCGWINSZ, &ws);
-    *y = ws.ws_row;
-    *x = ws.ws_col;
+    terminal.width = ws.ws_row;
+    terminal.height = ws.ws_col;
 }
 
-static int term_x = 0, term_y = 0;
-static int curs_x = 0, curs_y = 0;
-
-static inline void move_left(void)
+static void move_left(void)
 {
-    if (curs_x == 1 && term_y != 1)
+    if (cursor.x == 1 && terminal.height != 1)
     {
-        curs_x = term_x;
-        curs_y--;
+        cursor.x = terminal.width;
+        cursor.y--;
+        return;
     }
-    else
-        curs_x--;
+
+    cursor.x--;
 }
 
-static inline void move_right(void)
+static void move_right(void)
 {
-    if (curs_x == term_x)
+    if (cursor.x == terminal.width)
     {
-        if (curs_y == term_y)
+        if (cursor.y == terminal.height)
         {
             putchar('\n');
             restore_cursor_state();
             int new_x = 0, new_y = 0;
             get_cursor_pos(&new_x, &new_y);
-            move_to(new_x, new_y-1);
+            move_cursor_to(new_x, new_y-1);
             save_cursor_state();
             fflush(stdout);
-            curs_y--;
+            cursor.y--;
         }
-        curs_x = 1;
-        curs_y++;
+        cursor.x = 1;
+        cursor.y++;
+        return;
     }
-    else
-        curs_x++;
+
+    cursor.x++;
 }
 
 static inline void re_pos_cursor(size_t line_size)
 {
     restore_cursor_state();
-    get_cursor_pos(&curs_x, &curs_y);
+    get_cursor_pos(&cursor.x, &cursor.y);
     for (size_t i = 0; i < line_size; ++i)
         move_right();
 }
-
-#define IS_TRAILING_BYTE(b) ((b & 0xc0) == 0x80)
 
 static inline size_t utf8len(const char *str)
 {
@@ -137,9 +147,18 @@ static void init_deadline(void)
     tcsetattr(STDIN_FILENO, TCSADRAIN, &new_set);
 }
 
+void write_line(const char *prompt, const char *buffer, size_t size)
+{
+    restore_cursor_state();
+    clear_cursor_down();
+    fputs(prompt, stdout);
+    fwrite(buffer, 1, size, stdout);
+    move_cursor_to(cursor.x, cursor.y);
+}
+
 char *readline(const char *prompt)
 {
-    fputs(prompt, stdout);
+    size_t prompt_len = utf8len(prompt);
     char *buffer = malloc(256);
     if (buffer == NULL) return NULL;
     size_t size = 256;
@@ -149,11 +168,12 @@ char *readline(const char *prompt)
     init_deadline();
 
     save_cursor_state();
-    get_cursor_pos(&curs_x, &curs_y);
+    fputs(prompt, stdout);
+    get_cursor_pos(&cursor.x, &cursor.y);
     while (!feof(stdin))
     {
         int ch = getchar();
-        get_term_size(&term_x, &term_y);
+        get_term_size();
 
         if (skip)
         {
@@ -164,8 +184,9 @@ char *readline(const char *prompt)
         else if (re_render)
         {
             re_render = false;
-            re_pos_cursor(utf8len(buffer));
-            goto render_text;
+            re_pos_cursor(utf8len(buffer)+prompt_len);
+            write_line(prompt, buffer, pos);
+            continue;
         }
 
         if (ch == DEL)
@@ -184,7 +205,8 @@ char *readline(const char *prompt)
                 for (size_t i = pos-diff; i < pos; ++i)
                     buffer[i] = buffer[i+1];
             }
-            goto render_text;
+            write_line(prompt, buffer, pos);
+            continue;
         }
         else if (ch == '\033')
         {
@@ -204,7 +226,7 @@ char *readline(const char *prompt)
                     diff++;
                 move_left();
             }
-            move_to(curs_x, curs_y);
+            move_cursor_to(cursor.x, cursor.y);
             continue;
         }
 
@@ -223,13 +245,8 @@ char *readline(const char *prompt)
             buffer = realloc(buffer, size);
             if (buffer == NULL) return NULL;
         }
-    render_text:
-        buffer[pos] = '\0';
 
-        restore_cursor_state();
-        clear_cursor_down();
-        fputs(buffer, stdout);
-        move_to(curs_x, curs_y);
+        write_line(prompt, buffer, pos);
     }
     buffer[pos] = '\0';
     putchar('\n');
