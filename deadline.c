@@ -54,8 +54,8 @@ static void get_term_size(void)
 {
     struct winsize ws;
     ioctl(STDIN_FILENO, TIOCGWINSZ, &ws);
-    terminal.width = ws.ws_row;
-    terminal.height = ws.ws_col;
+    terminal.width = ws.ws_col;
+    terminal.height = ws.ws_row;
 }
 
 static void move_left(void)
@@ -124,8 +124,7 @@ static void sig_handler(int sig)
         re_render = true;
 }
 
-static struct termios new_set;
-static struct termios old_set;
+static struct termios new_set, old_set;
 
 static void init_deadline(void)
 {
@@ -147,7 +146,7 @@ static void init_deadline(void)
     tcsetattr(STDIN_FILENO, TCSADRAIN, &new_set);
 }
 
-void write_line(const char *prompt, const char *buffer, size_t size)
+static void write_line(const char *prompt, const char *buffer, size_t size)
 {
     restore_cursor_state();
     clear_cursor_down();
@@ -177,6 +176,7 @@ char *readline(const char *prompt)
 
         if (skip)
         {
+            skip = false;
             fputs("^C", stdout);
             buffer[0] = '\0';
             break;
@@ -250,7 +250,6 @@ char *readline(const char *prompt)
     }
     buffer[pos] = '\0';
     putchar('\n');
-    skip = false;
 
     tcsetattr(STDIN_FILENO, TCSANOW, &old_set);
     return buffer;
