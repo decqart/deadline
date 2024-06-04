@@ -113,8 +113,8 @@ static inline size_t utf8len(const char *str)
     return len;
 }
 
-static bool skip = false;
-static bool re_render = false;
+static volatile sig_atomic_t skip = false;
+static volatile sig_atomic_t re_render = false;
 
 static void sig_handler(int sig)
 {
@@ -131,9 +131,11 @@ static void init_deadline(void)
     static bool inited = false;
     if (!inited)
     {
-        struct sigaction sigact;
-        sigact.sa_handler = sig_handler;
-        sigact.sa_flags = 0;
+        struct sigaction sigact = {
+            .sa_handler = sig_handler,
+            .sa_flags = 0
+        };
+
         sigaction(SIGINT, &sigact, NULL);
         sigaction(SIGWINCH, &sigact, NULL);
 
